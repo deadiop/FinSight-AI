@@ -35,19 +35,19 @@ def save_transactions(transactions):
                 description
             )
 
-            # Duplicate check
+            # Check duplicates
             cursor.execute(
                 """
                 SELECT transaction_id
                 FROM transactions
                 WHERE
-                    transaction_date = %s
-                    AND description = %s
-                    AND amount = %s
-                    AND transaction_type = %s
+                    transaction_date = ?
+                    AND description = ?
+                    AND amount = ?
+                    AND transaction_type = ?
                 """,
                 (
-                    formatted_date,
+                    str(formatted_date),
                     description,
                     amount,
                     transaction_type
@@ -70,10 +70,10 @@ def save_transactions(transactions):
                     transaction_type,
                     category
                 )
-                VALUES (%s, %s, %s, %s, %s)
+                VALUES (?, ?, ?, ?, ?)
                 """,
                 (
-                    formatted_date,
+                    str(formatted_date),
                     description,
                     amount,
                     transaction_type,
@@ -86,8 +86,7 @@ def save_transactions(transactions):
         except Exception as e:
 
             print(
-                f"Failed to save transaction: "
-                f"{transaction}"
+                f"Failed to save transaction: {transaction}"
             )
 
             print(f"Error: {e}")
