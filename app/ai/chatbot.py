@@ -1,5 +1,6 @@
 from app.database.db import get_connection
-import ollama
+from groq import Groq
+import os
 
 
 def ask_financial_ai(user_question):
@@ -34,6 +35,10 @@ def ask_financial_ai(user_question):
             f"Category: {row[4]}\n"
         )
 
+    client = Groq(
+        api_key=os.getenv("GROQ_API_KEY")
+    )
+
     prompt = f"""
 You are a financial analyst.
 
@@ -48,8 +53,8 @@ Question:
 Give a clear answer.
 """
 
-    response = ollama.chat(
-        model="llama3.2",
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
         messages=[
             {
                 "role": "user",
@@ -58,4 +63,4 @@ Give a clear answer.
         ]
     )
 
-    return response["message"]["content"]
+    return response.choices[0].message.content

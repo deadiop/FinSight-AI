@@ -1,102 +1,79 @@
-from datetime import datetime
+from groq import Groq
+from app.services.analytics import (
+    generate_cashflow_report,
+    generate_category_report
+)
+import os
 
-from app.database.db import get_connection
-from app.services.categorizer import categorize_transaction
 
+def generate_financial_insights():
 
-def save_transactions(transactions):
+    # Get cashflow data
+    report = generate_cashflow_report()
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    total_income = 0
+    total_expense = 0
 
-    saved_count = 0
-    skipped_count = 0
+    for transaction_type, amount in report:
 
-    for transaction in transactions:
+        if transaction_type == "credit":
+            total_income += float(amount)
 
-        try:
+        elif transaction_type == "debit":
+            total_expense += float(amount)
 
-            formatted_date = datetime.strptime(
-                transaction["date"],
-                "%d-%m-%Y"
-            ).date()
+    # Get category data
+    category_report = generate_category_report()
 
-            description = transaction["description"].strip()
+    category_text = ""
 
-            amount = float(transaction["amount"])
+    for category, amount in category_report:
 
-            transaction_type = (
-                transaction["transaction_type"]
-                .lower()
-                .strip()
-            )
+        category_text += (
+            f"{category}: ₹{float(amount):.2f}\n"
+        )
 
-            category = categorize_transaction(
-                description
-            )
-
-            # Check duplicates
-            cursor.execute(
-                """
-                SELECT transaction_id
-                FROM transactions
-                WHERE
-                    transaction_date = ?
-                    AND description = ?
-                    AND amount = ?
-                    AND transaction_type = ?
-                """,
-                (
-                    str(formatted_date),
-                    description,
-                    amount,
-                    transaction_type
-                )
-            )
-
-            existing = cursor.fetchone()
-
-            if existing:
-                skipped_count += 1
-                continue
-
-            # Insert transaction
-            cursor.execute(
-                """
-                INSERT INTO transactions (
-                    transaction_date,
-                    description,
-                    amount,
-                    transaction_type,
-                    category
-                )
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    str(formatted_date),
-                    description,
-                    amount,
-                    transaction_type,
-                    category
-                )
-            )
-
-            saved_count += 1
-
-        except Exception as e:
-
-            print(
-                f"Failed to save transaction: {transaction}"
-            )
-
-            print(f"Error: {e}")
-
-    conn.commit()
-
-    cursor.close()
-    conn.close()
-
-    print(f"\nSaved: {saved_count} transactions")
-    print(
-        f"Skipped: {skipped_count} duplicate transactions"
+    # Initialize Groq client
+    client = Groq(
+        api_key=os.getenv("GROQ_API_KEY")
     )
+
+    prompt = f"""
+You are a professional financial advisor.
+
+Analyze the following financial data.
+
+FINANCIAL SUMMARY
+
+Income: ₹{total_income}
+Expenses: ₹{total_expense}
+Savings: ₹{total_income - total_expense}
+
+SPENDING CATEGORIES
+
+{category_text}
+
+Provide:
+
+1. Savings Rate (%)
+2. Top Spending Categories
+3. Financial Observations
+4. Suggestions to Save Money
+5. Estimated Monthly Savings Opportunity
+
+Keep the response concise and actionable.
+"""
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        temperature=0.3,
+        max_tokens=700
+    )
+
+    return response.choices[0].message.content
