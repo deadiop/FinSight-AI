@@ -4,42 +4,76 @@ from app.database.db import get_connection
 def generate_cashflow_report():
 
     conn = get_connection()
+
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT
-            transaction_type,
-            SUM(amount)
+        SELECT amount
         FROM transactions
-        GROUP BY transaction_type
     """)
 
-    results = cursor.fetchall()
+    rows = cursor.fetchall()
 
-    cursor.close()
     conn.close()
 
-    return results
+    income = 0.0
+    expense = 0.0
+
+    for row in rows:
+
+        amount = float(row[0])
+
+        if amount > 0:
+            income += amount
+        else:
+            expense += abs(amount)
+
+    return {
+        "income": income,
+        "expense": expense,
+        "net": income - expense
+    }
 
 
 def generate_category_report():
 
     conn = get_connection()
+
     cursor = conn.cursor()
 
     cursor.execute("""
         SELECT
             category,
-            SUM(amount)
+            SUM(
+                CASE
+                    WHEN amount > 0
+                    THEN amount
+                    ELSE 0
+                END
+            ) AS income,
+
+            SUM(
+                CASE
+                    WHEN amount < 0
+                    THEN ABS(amount)
+                    ELSE 0
+                END
+            ) AS expense
+
         FROM transactions
-        WHERE transaction_type = 'debit'
+
         GROUP BY category
-        ORDER BY SUM(amount) DESC
     """)
 
-    results = cursor.fetchall()
+    rows = cursor.fetchall()
 
-    cursor.close()
     conn.close()
 
-    return results
+    return [
+        {
+            "category": row[0],
+            "income": float(row[1] or 0),
+            "expense": float(row[2] or 0)
+        }
+        for row in rows
+    ]

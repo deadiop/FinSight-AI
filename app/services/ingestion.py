@@ -1,79 +1,61 @@
-from groq import Groq
-from app.services.analytics import (
-    generate_cashflow_report,
-    generate_category_report
-)
-import os
+import hashlib
+from app.database.db import insert_transaction
 
 
-def generate_financial_insights():
+def make_key(t):
+    """Creates unique fingerprint for each transaction"""
+    return hashlib.md5(
+        f"{t.get('date','')}-{t.get('description','')}-{t.get('amount','')}".encode()
+    ).hexdigest()
 
-    # Get cashflow data
-    report = generate_cashflow_report()
 
-    total_income = 0
-    total_expense = 0
+def normalize(t):
+    try:
+        return {
+            "date": str(t.get("date", "")).strip(),
+            "description": str(t.get("description", "")).strip().lower(),
+            "amount": float(t.get("amount", 0) or 0),
+            "category": str(t.get("category", "Uncategorized")).strip()
+        }
+    except:
+        return None
 
-    for transaction_type, amount in report:
 
-        if transaction_type == "credit":
-            total_income += float(amount)
+def ingest_transactions(transactions):
 
-        elif transaction_type == "debit":
-            total_expense += float(amount)
+    if not transactions:
+        print("No data to ingest")
+        return
 
-    # Get category data
-    category_report = generate_category_report()
+    seen = set()
+    clean = []
 
-    category_text = ""
+    # ---------------- GLOBAL DEDUP (CRITICAL FIX) ----------------
+    for t in transactions:
 
-    for category, amount in category_report:
+        nt = normalize(t)
+        if not nt:
+            continue
 
-        category_text += (
-            f"{category}: ₹{float(amount):.2f}\n"
-        )
+        key = make_key(nt)
 
-    # Initialize Groq client
-    client = Groq(
-        api_key=os.getenv("GROQ_API_KEY")
-    )
+        if key not in seen:
+            seen.add(key)
+            clean.append(nt)
 
-    prompt = f"""
-You are a professional financial advisor.
+    # ---------------- INSERT ONLY CLEAN DATA ----------------
+    count = 0
 
-Analyze the following financial data.
+    for t in clean:
+        try:
+            insert_transaction(
+                t["date"],
+                t["description"],
+                t["amount"],
+                t["category"]
+            )
+            count += 1
+        except Exception as e:
+            print("Insert failed:", t, e)
 
-FINANCIAL SUMMARY
-
-Income: ₹{total_income}
-Expenses: ₹{total_expense}
-Savings: ₹{total_income - total_expense}
-
-SPENDING CATEGORIES
-
-{category_text}
-
-Provide:
-
-1. Savings Rate (%)
-2. Top Spending Categories
-3. Financial Observations
-4. Suggestions to Save Money
-5. Estimated Monthly Savings Opportunity
-
-Keep the response concise and actionable.
-"""
-
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0.3,
-        max_tokens=700
-    )
-
-    return response.choices[0].message.content
+    print(f"Inserted {count} UNIQUE transactions")

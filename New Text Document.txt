@@ -1,0 +1,14 @@
+from app.services.ingestion import ingest_transactions
+
+sample_data = [
+    {
+        "date": "2026-06-11",
+        "description": "Test Transaction",
+        "amount": 100,
+        "category": "Testing"
+    }
+]
+
+ingest_transactions(sample_data)
+
+print("Inserted successfully")

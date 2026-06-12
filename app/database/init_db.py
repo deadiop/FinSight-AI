@@ -1,23 +1,47 @@
-from app.database.db import get_connection
+from pathlib import Path
+import sqlite3
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+DB_PATH = BASE_DIR / "finance.db"
 
 
-def init_database():
-    conn = get_connection()
+def init_db():
+
+    conn = sqlite3.connect(DB_PATH)
+
     cursor = conn.cursor()
 
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS transactions (
-        transaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        transaction_date TEXT,
-        description TEXT,
-        amount REAL,
-        transaction_type TEXT,
-        category TEXT,
-        currency TEXT DEFAULT 'INR',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
+        CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            description TEXT NOT NULL,
+            amount REAL NOT NULL,
+            category TEXT,
+            UNIQUE(date, description, amount)
+        )
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_date
+        ON transactions(date)
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_category
+        ON transactions(category)
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_amount
+        ON transactions(amount)
     """)
 
     conn.commit()
-    cursor.close()
     conn.close()
+
+    print(f"Database initialized at: {DB_PATH}")
+
+
+if __name__ == "__main__":
+    init_db()

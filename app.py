@@ -1,46 +1,48 @@
-import os
-import tempfile
-
 import streamlit as st
+import tempfile
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 
+from app.database.init_db import init_db
+
+# Initialize database
+init_db()
+
+# Parsers
 from app.parsers.pdf_parser import extract_pdf_text
-from app.parsers.csv_parser import extract_csv_text
-from app.parsers.excel_parser import extract_excel_text
+from app.parsers.csv_parser import parse_csv
+from app.parsers.excel_parser import extract_excel_transactions
 from app.parsers.image_parser import extract_image_text
 
+# AI
 from app.ai.extractor import extract_transactions
-from app.services.ingestion import save_transactions
+from app.ai.insights import generate_financial_insights
+from app.ai.chatbot import ask_financial_ai
 
+# Services
+from app.services.ingestion import ingest_transactions
 from app.services.analytics import (
     generate_cashflow_report,
     generate_category_report
 )
 
-from app.ai.insights import generate_financial_insights
-from app.ai.chatbot import ask_financial_ai
-
-
-# ---------------------------------------------------
-# PAGE CONFIG
-# ---------------------------------------------------
+# ---------------- PAGE CONFIG ----------------
 
 st.set_page_config(
-    page_title="AI Financial Analyzer",
+    page_title="FinSight AI",
+    page_icon="💰",
     layout="wide"
 )
 
-st.title("💰 AI Financial Analyzer")
+st.title("💰 FinSight AI")
+st.caption("AI-Powered Financial Analysis Dashboard")
 
 st.write(
-    "Upload one or more Bank Statements "
-    "(PDF, CSV, Excel, Images)"
+    "Upload bank statements in PDF, CSV, Excel, or Image format."
 )
 
-# ---------------------------------------------------
-# MULTI FILE UPLOAD
-# ---------------------------------------------------
+# ---------------- FILE UPLOADER ----------------
 
 uploaded_files = st.file_uploader(
     "Upload Files",
@@ -56,21 +58,45 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True
 )
 
-# ---------------------------------------------------
-# PROCESS FILES
-# ---------------------------------------------------
+# ---------------- NORMALIZER ----------------
+
+def normalize_transaction(t):
+    try:
+        return {
+            "date": str(t.get("date", "")).strip(),
+            "description": str(
+                t.get("description", "")
+            ).strip(),
+            "amount": float(
+                t.get("amount", 0)
+            ),
+            "category": str(
+                t.get(
+                    "category",
+                    "Uncategorized"
+                )
+            ).strip()
+        }
+
+    except Exception:
+        return None
+
+
+# ---------------- MAIN ANALYSIS ----------------
 
 if uploaded_files:
 
-    st.success(f"{len(uploaded_files)} file(s) selected")
-
     if st.button("🚀 Analyze All Files"):
 
-        with st.spinner("Processing statements..."):
+        all_transactions = []
 
-            total_transactions = []
+        progress = st.progress(0)
 
-            for uploaded_file in uploaded_files:
+        with st.spinner("Analyzing uploaded files..."):
+
+            total_files = len(uploaded_files)
+
+            for index, uploaded_file in enumerate(uploaded_files):
 
                 extension = (
                     uploaded_file.name
@@ -81,15 +107,17 @@ if uploaded_files:
                 with tempfile.NamedTemporaryFile(
                     delete=False,
                     suffix=f".{extension}"
-                ) as tmp_file:
+                ) as tmp:
 
-                    tmp_file.write(
+                    tmp.write(
                         uploaded_file.getvalue()
                     )
 
-                    file_path = tmp_file.name
+                    file_path = tmp.name
 
                 try:
+
+                    transactions = []
 
                     # PDF
                     if extension == "pdf":
@@ -98,24 +126,18 @@ if uploaded_files:
                             file_path
                         )
 
+                        transactions = extract_transactions(
+                            text
+                        )
+
                     # CSV
                     elif extension == "csv":
 
-                        text = extract_csv_text(
+                        transactions = parse_csv(
                             file_path
                         )
 
-                    # EXCEL
-                    elif extension in [
-                        "xlsx",
-                        "xls"
-                    ]:
-
-                        text = extract_excel_text(
-                            file_path
-                        )
-
-                    # IMAGE
+                    # Images
                     elif extension in [
                         "png",
                         "jpg",
@@ -126,15 +148,33 @@ if uploaded_files:
                             file_path
                         )
 
-                    else:
-                        continue
+                        transactions = extract_transactions(
+                            text
+                        )
 
-                    transactions = (
-                        extract_transactions(text)
-                    )
+                    # Excel
+                    elif extension in [
+                        "xlsx",
+                        "xls"
+                    ]:
 
-                    total_transactions.extend(
-                        transactions
+                        transactions = extract_excel_transactions(
+                            file_path
+                        )
+
+                    cleaned = []
+
+                    for t in transactions:
+
+                        nt = normalize_transaction(
+                            t
+                        )
+
+                        if nt:
+                            cleaned.append(nt)
+
+                    all_transactions.extend(
+                        cleaned
                     )
 
                 except Exception as e:
@@ -143,38 +183,61 @@ if uploaded_files:
                         f"{uploaded_file.name}: {e}"
                     )
 
-            # SAVE ALL TRANSACTIONS
-
-            if total_transactions:
-
-                save_transactions(
-                    total_transactions
+                progress.progress(
+                    (index + 1) / total_files
                 )
 
+        # Deduplication
+
+        seen = set()
+        unique_transactions = []
+
+        for t in all_transactions:
+
+            key = (
+                t["date"],
+                t["description"],
+                t["amount"]
+            )
+
+            if key not in seen:
+
+                seen.add(key)
+
+                unique_transactions.append(t)
+
+        # Save
+
+        if unique_transactions:
+
+            ingest_transactions(
+                unique_transactions
+            )
+
         st.success(
-            f"Processed {len(total_transactions)} transactions"
+            f"Processed {len(unique_transactions)} transactions"
         )
 
         st.divider()
 
-        # ---------------------------------------------------
-        # CASHFLOW
-        # ---------------------------------------------------
+        # Cashflow
 
         report = generate_cashflow_report()
 
-        income = 0
-        expense = 0
+        income = report.get(
+            "income",
+            0
+        )
 
-        for t_type, amount in report:
+        expense = report.get(
+            "expense",
+            0
+        )
 
-            if t_type == "credit":
-
-                income += float(amount)
-
-            else:
-
-                expense += float(amount)
+        net = report.get(
+            "net",
+            0
+        )
 
         col1, col2, col3 = st.columns(3)
 
@@ -184,95 +247,109 @@ if uploaded_files:
         )
 
         col2.metric(
-            "Expenses",
+            "Expense",
             f"₹{expense:,.2f}"
         )
 
         col3.metric(
             "Net Cashflow",
-            f"₹{income-expense:,.2f}"
+            f"₹{net:,.2f}"
         )
 
         st.divider()
 
-        # ---------------------------------------------------
-        # CATEGORY REPORT
-        # ---------------------------------------------------
+        # Category Report
 
         st.subheader(
             "📊 Spending Categories"
         )
 
-        category_report = (
-            generate_category_report()
-        )
+        category_report = generate_category_report()
 
         if category_report:
 
             df = pd.DataFrame(
-                category_report,
-                columns=[
-                    "Category",
-                    "Amount"
-                ]
+                category_report
             )
+
+            df["income"] = pd.to_numeric(
+                df["income"],
+                errors="coerce"
+            ).fillna(0)
+
+            df["expense"] = pd.to_numeric(
+                df["expense"],
+                errors="coerce"
+            ).fillna(0)
+
+            df = df.replace(
+                [np.inf, -np.inf],
+                np.nan
+            ).dropna()
 
             st.dataframe(
                 df,
                 use_container_width=True
             )
 
-            fig, ax = plt.subplots(
-                figsize=(7, 7)
-            )
+            expense_df = df[
+                df["expense"] > 0
+            ]
 
-            ax.pie(
-                df["Amount"],
-                labels=df["Category"],
-                autopct="%1.1f%%"
-            )
+            if not expense_df.empty:
 
-            ax.set_title(
-                "Expense Distribution"
-            )
+                fig, ax = plt.subplots()
 
-            st.pyplot(fig)
+                ax.pie(
+                    expense_df["expense"],
+                    labels=expense_df["category"],
+                    autopct="%1.1f%%"
+                )
+
+                ax.set_title(
+                    "Expense Distribution"
+                )
+
+                st.pyplot(fig)
 
         st.divider()
 
-        # ---------------------------------------------------
-        # AI INSIGHTS
-        # ---------------------------------------------------
+        # AI Insights
 
         st.subheader(
             "🤖 AI Financial Insights"
         )
 
-        insights = (
-            generate_financial_insights()
-        )
+        insights = ""
 
-        st.write(insights)
+        try:
+
+            insights = (
+                generate_financial_insights()
+            )
+
+            st.write(insights)
+
+        except Exception as e:
+
+            st.error(
+                f"Insights Error: {e}"
+            )
 
         st.divider()
 
-        # ---------------------------------------------------
-        # DOWNLOAD REPORT
-        # ---------------------------------------------------
+        # Download Report
 
         report_text = f"""
-AI FINANCIAL REPORT
+FINANCIAL REPORT
 
-Total Income:
-₹{income}
+Income: ₹{income:,.2f}
 
-Total Expenses:
-₹{expense}
+Expenses: ₹{expense:,.2f}
 
-Net Cashflow:
-₹{income-expense}
+Net Cashflow: ₹{net:,.2f}
 
-AI Insights:
+AI INSIGHTS:
 
 {insights}
 """
@@ -284,16 +361,12 @@ AI Insights:
             mime="text/plain"
         )
 
-# ---------------------------------------------------
-# SIDEBAR CHATBOT
-# ---------------------------------------------------
+# ---------------- SIDEBAR CHATBOT ----------------
 
-st.sidebar.title(
-    "💬 Financial AI Assistant"
-)
+st.sidebar.title("💬 AI Assistant")
 
 question = st.sidebar.text_input(
-    "Ask anything about your finances"
+    "Ask about your finances"
 )
 
 if question:
@@ -304,8 +377,12 @@ if question:
             question
         )
 
-        st.sidebar.write(answer)
+        st.sidebar.write(
+            answer
+        )
 
     except Exception as e:
 
-        st.sidebar.error(str(e))
+        st.sidebar.error(
+            str(e)
+        )

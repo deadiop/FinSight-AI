@@ -1,8 +1,18 @@
-import pandas as pd
+import csv
 
 
-def extract_csv_text(file_path):
+def parse_csv(file_path):
+    transactions = []
 
-    df = pd.read_csv(file_path)
+    with open(file_path, mode="r", encoding="utf-8") as file:
+        reader = csv.DictReader(file)
 
-    return df.to_string(index=False)
+        for row in reader:
+            transactions.append({
+                "date": row.get("date"),
+                "description": row.get("description"),
+                "amount": float(row.get("amount", 0)),
+                "category": row.get("category", "Uncategorized")
+            })
+
+    return transactions

@@ -1,7 +1,7 @@
-venv/
-__pycache__/
-*.pyc
-uploads/
-.env
-.idea/
-.vscode/
+venv/ 
+__pycache__/ 
+*.pyc 
+finance.db 
+.env 
+uploads/ 
+.streamlit/ 

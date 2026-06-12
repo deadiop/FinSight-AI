@@ -1,71 +1,73 @@
 import json
 import re
-import ollama
+import os
+
+from groq import Groq
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
-def extract_transactions(raw_text: str):
+def extract_transactions(raw_text):
+
+    api_key = os.getenv("GROQ_API_KEY")
+
+    if not api_key:
+        raise ValueError("GROQ_API_KEY not found")
+
+    client = Groq(api_key=api_key)
 
     prompt = f"""
-Extract all financial transactions.
+Extract all financial transactions from the text below.
 
-Return ONLY a JSON array.
-
-No explanations.
-No markdown.
-No text before or after JSON.
+Return ONLY valid JSON.
 
 Format:
 
 [
   {{
-    "date": "",
-    "description": "",
-    "amount": 0,
-    "transaction_type": "credit/debit"
+    "date": "01-01-2026",
+    "description": "Amazon Purchase",
+    "amount": -500,
+    "category": "Shopping"
   }}
 ]
 
-TEXT:
+RULES:
+- No markdown
+- No explanations
+- Return only JSON
+- Expense = negative amount
+- Income = positive amount
 
+TEXT:
 {raw_text}
 """
 
-    response = ollama.chat(
-        model="llama3.2",
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
         messages=[
             {
                 "role": "user",
                 "content": prompt
             }
-        ]
+        ],
+        temperature=0,
+        max_tokens=4000
     )
 
-    content = response["message"]["content"]
+    content = response.choices[0].message.content
 
-    print("\n=== RAW LLM OUTPUT ===\n")
-    print(content)
-
-    # Extract JSON array safely
-    match = re.search(r"\[.*\]", content, re.DOTALL)
+    match = re.search(
+        r"\[.*\]",
+        content,
+        re.DOTALL
+    )
 
     if not match:
-        raise ValueError("No JSON array found in LLM response")
+        return []
 
-    json_text = match.group()
-
-    transactions = json.loads(json_text)
-
-    # Normalize data
-    for transaction in transactions:
-
-        transaction["transaction_type"] = (
-            transaction["transaction_type"]
-            .lower()
-            .strip()
-        )
-
-        transaction["amount"] = abs(
-            float(transaction["amount"])
-        )
-
-    return transactions
+    try:
+        return json.loads(match.group())
+    except Exception:
+        return []

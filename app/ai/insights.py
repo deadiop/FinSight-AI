@@ -1,51 +1,69 @@
-import ollama
+from groq import Groq
 from app.services.analytics import (
     generate_cashflow_report,
     generate_category_report
 )
+import os
 
 
 def generate_financial_insights():
 
-    cashflow = generate_cashflow_report()
-    categories = generate_category_report()
+    report = generate_cashflow_report()
 
-    summary = "Cashflow Report:\n"
+    total_income = report["income"]
+    total_expense = report["expense"]
+    net_savings = report["net"]
 
-    for row in cashflow:
-        summary += f"{row[0]}: ₹{row[1]}\n"
+    category_report = (
+        generate_category_report()
+    )
 
-    summary += "\nCategory Report:\n"
+    category_text = ""
 
-    for row in categories:
-        summary += f"{row[0]}: ₹{row[1]}\n"
+    for row in category_report:
+
+        category_text += (
+            f"{row['category']}: "
+            f"Income ₹{row['income']:.2f}, "
+            f"Expense ₹{row['expense']:.2f}\n"
+        )
+
+    client = Groq(
+        api_key=os.getenv("GROQ_API_KEY")
+    )
 
     prompt = f"""
-You are a financial advisor.
+You are a professional financial advisor.
 
-Analyze the following financial data.
+Income: ₹{total_income:.2f}
+Expenses: ₹{total_expense:.2f}
+Savings: ₹{net_savings:.2f}
 
-{summary}
+Categories:
+
+{category_text}
 
 Provide:
 
-1. Savings rate
-2. Top spending categories
-3. Financial observations
-4. Suggestions to save money
-5. Estimated monthly savings opportunity
+1. Savings Rate
+2. Top Spending Categories
+3. Financial Observations
+4. Suggestions
+5. Monthly Saving Opportunities
 
 Keep it concise.
 """
 
-    response = ollama.chat(
-        model="llama3.2",
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
         messages=[
             {
                 "role": "user",
                 "content": prompt
             }
-        ]
+        ],
+        temperature=0.3,
+        max_tokens=700
     )
 
-    return response["message"]["content"]
+    return response.choices[0].message.content
