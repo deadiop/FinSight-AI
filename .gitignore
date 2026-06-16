@@ -1,0 +1,33 @@
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Environment secrets and credentials
+.env
+.env.*
+netlify_auth_url.txt
+netlify_login_output.txt
+backend_tunnel_url.txt
+tunnel_url.txt
+
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local database files
+finance.db
+finance.db-journal
+
+# Netlify state and folder
+.netlify/
+
+# Scratch query scripts containing database credentials
+print_transactions.py
+test_postgres_query.py
+unlock_db.py
+check_data.py
+check_tables.py
+test_db.py
+update_categories.py

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinSight AI - Financial Document Processor</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Main Dashboard -->
+        <main class="dashboard">
+            <header class="header">
+                <div class="header-title">
+                    <h1>FinSight AI</h1>
+                    <span class="subtitle">Financial Document Processor</span>
+                </div>
+                <div class="header-actions">
+                    <div class="connection-status" id="connectionStatus">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Checking API...</span>
+                    </div>
+                    <button class="btn btn-secondary" id="settingsBtn" title="Backend Settings">
+                        <i class="fa-solid fa-gear"></i>
+                    </button>
+                    <button class="btn btn-danger" id="resetBtn" title="Reset Database">
+                        Reset
+                    </button>
+                </div>
+            </header>
+
+            <!-- Metrics Grid -->
+            <section class="metrics-grid">
+                <div class="metric-card income-card">
+                    <div class="card-content">
+                        <h3>Income</h3>
+                        <p class="amount" id="incomeValue">₹0.00</p>
+                    </div>
+                </div>
+                <div class="metric-card expense-card">
+                    <div class="card-content">
+                        <h3>Expenses</h3>
+                        <p class="amount" id="expenseValue">₹0.00</p>
+                    </div>
+                </div>
+                <div class="metric-card net-card">
+                    <div class="card-content">
+                        <h3>Net Cashflow</h3>
+                        <p class="amount" id="netValue">₹0.00</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Content Grid (Uploads, Charts, and Insights) -->
+            <div class="content-grid">
+                <!-- Left: Upload Card -->
+                <div class="grid-card upload-card">
+                    <h2>Ingest Documents</h2>
+                    <p class="card-description">Upload statements (PDF, CSV, Excel) to process transactions.</p>
+                    
+                    <div class="dropzone" id="dropzone">
+                        <input type="file" id="fileInput" multiple accept=".pdf,.csv,.xlsx,.xls" style="display: none;">
+                        <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                        <p class="dropzone-text">Drag & Drop statements here or <span>browse</span></p>
+                        <p class="dropzone-help">Supports PDF, CSV, Excel</p>
+                    </div>
+                    <div class="file-list" id="fileList"></div>
+                </div>
+
+                <!-- Right: Chart Card -->
+                <div class="grid-card chart-card">
+                    <h2>Expense Distribution</h2>
+                    <p class="card-description">Categorized breakdown of expenses.</p>
+                    <div class="chart-container">
+                        <canvas id="expenseChart"></canvas>
+                        <div id="chartPlaceholder" class="chart-placeholder">
+                            <i class="fa-solid fa-circle-notch"></i>
+                            <p>No transaction data available yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insights Section -->
+            <section class="insights-section grid-card">
+                <div class="insights-header">
+                    <div>
+                        <h2>AI Financial Insights</h2>
+                        <p class="card-description">Instant savings suggestions and pattern detection.</p>
+                    </div>
+                    <button class="btn btn-primary" id="insightsBtn">
+                        Generate Insights
+                    </button>
+                </div>
+                <div class="insights-content" id="insightsContent">
+                    <p class="placeholder-text">Click "Generate Insights" to run AI diagnostics on your financial data.</p>
+                </div>
+            </section>
+
+            <!-- Transactions Section -->
+            <section class="transactions-section grid-card">
+                <div class="section-header">
+                    <h2>Transactions List</h2>
+                    <button class="btn btn-secondary btn-sm" id="downloadBtn" disabled>
+                        Download Report
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table class="table" id="transactionsTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Amount</th>
+                                <th>Category</th>
+                                <th>Source File</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                    <div id="tablePlaceholder" class="table-placeholder">
+                        <i class="fa-solid fa-receipt"></i>
+                        <p>No transactions found. Upload your first statement above.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Right Sidebar (Chatbot) -->
+        <aside class="sidebar" id="chatbotSidebar">
+            <div class="sidebar-header">
+                <h3>AI Assistant</h3>
+                <button class="btn-close-sidebar" id="toggleSidebar" title="Collapse Sidebar">
+                    <i class="fa-solid fa-angles-right"></i>
+                </button>
+            </div>
+            
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message assistant">
+                        <div class="message-bubble">
+                            Hello! I am your AI financial assistant. Ask me questions about your transactions, spending patterns, or savings goals.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat-input-area">
+                    <form id="chatForm">
+                        <input type="text" id="chatInput" placeholder="Ask about your finances..." autocomplete="off">
+                        <button type="submit" id="chatSendBtn" disabled>
+                            <i class="fa-solid fa-arrow-up"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Sidebar Trigger (Hidden when sidebar is open) -->
+        <button class="sidebar-trigger btn" id="sidebarTrigger" style="display: none;" title="Open AI Assistant">
+            <i class="fa-solid fa-comments"></i> AI Assistant
+        </button>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Connection Settings</h2>
+                <button class="modal-close" id="closeSettingsModal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="backendUrlInput">FastAPI Backend API URL</label>
+                    <input type="url" id="backendUrlInput" placeholder="http://127.0.0.1:8000">
+                    <small class="form-help">Enter the public URL of your FastAPI backend (e.g. Render URL) or localhost for local runs.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelSettings">Cancel</button>
+                <button class="btn btn-primary" id="saveSettings">Save Configuration</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Custom JS -->
+    <script src="app.js"></script>
+</body>
+</html>

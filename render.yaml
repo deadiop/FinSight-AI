@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: finsight-backend
+    env: docker
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false

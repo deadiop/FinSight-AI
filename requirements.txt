@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+streamlit
+sqlalchemy
+psycopg2-binary
+python-dotenv
+pandas
+plotly
+groq
+pydantic
+python-multipart
+passlib[bcrypt]
+email-validator
+alembic
+pdfplumber
+openpyxl
+matplotlib
