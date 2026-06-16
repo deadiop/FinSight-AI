@@ -1,6 +1,6 @@
 // Application State
 const state = {
-    backendUrl: localStorage.getItem('backend_url') || 'https://4c4bc2a9ce0db3.lhr.life',
+    backendUrl: localStorage.getItem('backend_url') || 'https://finsight-backend-k35w.onrender.com',
     isConnected: false,
     chart: null,
     filesUploading: 0
@@ -137,7 +137,7 @@ function setupEventListeners() {
 
 // Check Connection to FastAPI
 async function checkConnection(forceReload = false) {
-    const defaultFallback = 'https://4c4bc2a9ce0db3.lhr.life';
+    const defaultFallback = 'https://finsight-backend-k35w.onrender.com';
     try {
         const res = await fetch(`${state.backendUrl}/health`, { method: 'GET', mode: 'cors' });
         if (res.ok) {
