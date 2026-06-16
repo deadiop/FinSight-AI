@@ -29,9 +29,6 @@
                         <span class="status-dot"></span>
                         <span class="status-text">Checking API...</span>
                     </div>
-                    <button class="btn btn-secondary" id="settingsBtn" title="Backend Settings">
-                        <i class="fa-solid fa-gear"></i>
-                    </button>
                     <button class="btn btn-danger" id="resetBtn" title="Reset Database">
                         Reset
                     </button>
@@ -172,26 +169,7 @@
         </button>
     </div>
 
-    <!-- Settings Modal -->
-    <div class="modal-overlay" id="settingsModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h2>Connection Settings</h2>
-                <button class="modal-close" id="closeSettingsModal"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="backendUrlInput">FastAPI Backend API URL</label>
-                    <input type="url" id="backendUrlInput" placeholder="http://127.0.0.1:8000">
-                    <small class="form-help">Enter the public URL of your FastAPI backend (e.g. Render URL) or localhost for local runs.</small>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="cancelSettings">Cancel</button>
-                <button class="btn btn-primary" id="saveSettings">Save Configuration</button>
-            </div>
-        </div>
-    </div>
+
     
     <!-- Custom JS -->
     <script src="app.js"></script>

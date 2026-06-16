@@ -1,6 +1,6 @@
 // Application State
 const state = {
-    backendUrl: localStorage.getItem('backend_url') || 'https://finsight-backend-k35w.onrender.com',
+    backendUrl: 'https://finsight-backend-k35w.onrender.com',
     isConnected: false,
     chart: null,
     filesUploading: 0
@@ -9,13 +9,7 @@ const state = {
 // DOM Elements
 const elements = {
     connectionStatus: document.getElementById('connectionStatus'),
-    settingsBtn: document.getElementById('settingsBtn'),
-    settingsModal: document.getElementById('settingsModal'),
-    backendUrlInput: document.getElementById('backendUrlInput'),
-    saveSettings: document.getElementById('saveSettings'),
-    cancelSettings: document.getElementById('cancelSettings'),
-    closeSettingsModal: document.getElementById('closeSettingsModal'),
-    
+
     resetBtn: document.getElementById('resetBtn'),
     downloadBtn: document.getElementById('downloadBtn'),
     insightsBtn: document.getElementById('insightsBtn'),
@@ -46,9 +40,6 @@ const elements = {
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', () => {
-    // Set settings input value
-    elements.backendUrlInput.value = state.backendUrl;
-    
     // Bind Event Listeners
     setupEventListeners();
     
@@ -61,25 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Setup Event Listeners
 function setupEventListeners() {
-    // Settings Modal
-    elements.settingsBtn.addEventListener('click', () => {
-        elements.backendUrlInput.value = state.backendUrl;
-        elements.settingsModal.classList.add('open');
-    });
-    
-    const closeModal = () => elements.settingsModal.classList.remove('open');
-    elements.cancelSettings.addEventListener('click', closeModal);
-    elements.closeSettingsModal.addEventListener('click', closeModal);
-    
-    elements.saveSettings.addEventListener('click', () => {
-        let url = elements.backendUrlInput.value.trim();
-        if (url.endsWith('/')) url = url.slice(0, -1);
-        state.backendUrl = url || 'http://127.0.0.1:8000';
-        localStorage.setItem('backend_url', state.backendUrl);
-        closeModal();
-        checkConnection(true); // Force reload
-    });
-    
     // Reset Data
     elements.resetBtn.addEventListener('click', () => {
         if (confirm("Are you sure you want to erase all financial transactions? This action is permanent.")) {
@@ -137,7 +109,6 @@ function setupEventListeners() {
 
 // Check Connection to FastAPI
 async function checkConnection(forceReload = false) {
-    const defaultFallback = 'https://finsight-backend-k35w.onrender.com';
     try {
         const res = await fetch(`${state.backendUrl}/health`, { method: 'GET', mode: 'cors' });
         if (res.ok) {
@@ -149,28 +120,8 @@ async function checkConnection(forceReload = false) {
             return;
         }
     } catch (e) {
-        console.warn("Connection to primary backend failed:", e);
+        console.warn("Connection to backend failed:", e);
     }
-
-    // Self-healing: if connection to primary failed, and we have a custom URL saved in localStorage,
-    // try to fall back to the default active tunnel URL (in case the saved one is an expired tunnel)
-    if (state.backendUrl !== defaultFallback) {
-        try {
-            console.log("Trying active fallback tunnel URL:", defaultFallback);
-            const res = await fetch(`${defaultFallback}/health`, { method: 'GET', mode: 'cors' });
-            if (res.ok) {
-                state.backendUrl = defaultFallback;
-                localStorage.setItem('backend_url', defaultFallback);
-                updateConnectionStatus(true);
-                state.isConnected = true;
-                loadDashboardData();
-                return;
-            }
-        } catch (e) {
-            console.warn("Fallback connection also failed:", e);
-        }
-    }
-
     updateConnectionStatus(false);
 }
 
