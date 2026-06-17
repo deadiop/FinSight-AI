@@ -9,13 +9,13 @@ from backend.services.analytics import generate_cashflow_report, generate_catego
 load_dotenv()
 
 
-def generate_financial_insights():
+def generate_financial_insights(user_id):
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise ValueError("GROQ_API_KEY is not configured.")
 
-    cashflow = generate_cashflow_report()
-    categories = generate_category_report()
+    cashflow = generate_cashflow_report(user_id)
+    categories = generate_category_report(user_id)
     category_text = "\n".join(
         f"{row['category']}: Income INR {row['income']:.2f} | Expense INR {row['expense']:.2f}"
         for row in categories

@@ -137,7 +137,7 @@ def normalize_transaction(transaction, source_file=None):
     }
 
 
-def ingest_transactions(transactions, source_file=None, db=None):
+def ingest_transactions(transactions, source_file=None, user_id=None, db=None):
     seen = set()
     inserted = 0
     skipped = 0
@@ -160,6 +160,7 @@ def ingest_transactions(transactions, source_file=None, db=None):
             normalized["amount"],
             normalized["category"],
             normalized["source_file"],
+            user_id=user_id,
             db=db,
         )
 
@@ -167,6 +168,6 @@ def ingest_transactions(transactions, source_file=None, db=None):
 
 
 # Wrapper required by backend/api/upload.py
-def save_transactions(db, transactions, source_file=None):
-    result = ingest_transactions(transactions, source_file=source_file, db=db)
+def save_transactions(db, transactions, source_file=None, user_id=None):
+    result = ingest_transactions(transactions, source_file=source_file, user_id=user_id, db=db)
     return result["inserted"]

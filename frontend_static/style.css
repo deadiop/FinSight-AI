@@ -943,3 +943,121 @@ body {
 }
 
 .font-small { font-size: 0.8rem; }
+
+/* Authentication Screen Neobrutalist Styling */
+.auth-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    width: 100vw;
+    background-color: var(--bg-app);
+    padding: 2rem;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    overflow-y: auto;
+}
+
+.auth-card {
+    background: #ffffff;
+    border: var(--border-width-thick) solid var(--border-color);
+    border-radius: 4px;
+    width: 420px;
+    max-width: 100%;
+    box-shadow: 8px 8px 0px var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modalSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auth-header {
+    padding: 1.5rem;
+    border-bottom: var(--border-width-thick) solid var(--border-color);
+    background: var(--neon-yellow);
+}
+
+.auth-header h2 {
+    font-family: var(--font-heading);
+    font-size: 1.8rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.auth-tabs {
+    display: flex;
+    border-bottom: var(--border-width-thick) solid var(--border-color);
+    background: #fafaf9;
+}
+
+.auth-tab-btn {
+    flex: 1;
+    padding: 0.95rem;
+    border: none;
+    border-right: var(--border-width-thin) solid var(--border-color);
+    background: transparent;
+    font-family: var(--font-body);
+    font-weight: 850;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.1s ease;
+}
+
+.auth-tab-btn:last-child {
+    border-right: none;
+}
+
+.auth-tab-btn:hover {
+    background: #f1f1ee;
+}
+
+.auth-tab-btn.active {
+    background: #ffffff;
+    font-weight: 900;
+}
+
+.auth-form {
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.auth-submit-btn {
+    margin-top: 0.5rem;
+    width: 100%;
+    font-size: 0.85rem;
+    padding: 0.75rem 1.25rem;
+}
+
+.form-error {
+    background: var(--neon-red);
+    border: var(--border-width-thin) solid var(--border-color);
+    padding: 0.75rem 0.9rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    box-shadow: 2px 2px 0px var(--border-color);
+    color: #000000;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.form-success {
+    background: var(--neon-green);
+    border: var(--border-width-thin) solid var(--border-color);
+    padding: 0.75rem 0.9rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    box-shadow: 2px 2px 0px var(--border-color);
+    color: #000000;
+    animation: fadeIn 0.2s ease-out;
+}

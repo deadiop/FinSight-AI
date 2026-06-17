@@ -81,17 +81,18 @@ def test_connection():
         return False
 
 
-def insert_transaction(date, description, amount, category, source_file=None, db=None):
+def insert_transaction(date, description, amount, category, source_file=None, user_id=None, db=None):
     close_db = False
     if db is None:
         db = SessionLocal()
         close_db = True
     try:
-        # Check if transaction with same date, description, amount already exists to avoid duplicates
+        # Check if transaction with same date, description, amount, user_id already exists to avoid duplicates
         existing = db.query(Transaction).filter(
             Transaction.date == date,
             Transaction.description == description,
-            Transaction.amount == amount
+            Transaction.amount == amount,
+            Transaction.user_id == user_id
         ).first()
         if existing:
             return 0
@@ -101,7 +102,8 @@ def insert_transaction(date, description, amount, category, source_file=None, db
             description=description,
             amount=amount,
             category=category,
-            source_file=source_file
+            source_file=source_file,
+            user_id=user_id
         )
         db.add(tx)
         db.commit()
@@ -115,13 +117,13 @@ def insert_transaction(date, description, amount, category, source_file=None, db
             db.close()
 
 
-def fetch_transactions(db=None):
+def fetch_transactions(user_id, db=None):
     close_db = False
     if db is None:
         db = SessionLocal()
         close_db = True
     try:
-        rows = db.query(Transaction).order_by(Transaction.date.desc(), Transaction.id.desc()).all()
+        rows = db.query(Transaction).filter(Transaction.user_id == user_id).order_by(Transaction.date.desc(), Transaction.id.desc()).all()
         return [
             {
                 "id": row.id,
@@ -142,13 +144,17 @@ def fetch_transactions(db=None):
             db.close()
 
 
-def clear_transactions():
-    db = SessionLocal()
+def clear_transactions(user_id, db=None):
+    close_db = False
+    if db is None:
+        db = SessionLocal()
+        close_db = True
     try:
-        db.query(Transaction).delete()
+        db.query(Transaction).filter(Transaction.user_id == user_id).delete()
         db.commit()
     except Exception as e:
         db.rollback()
         print(f"Error clearing transactions: {e}")
     finally:
-        db.close()
+        if close_db:
+            db.close()

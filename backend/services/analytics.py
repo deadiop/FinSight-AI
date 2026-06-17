@@ -3,8 +3,8 @@ import pandas as pd
 from backend.database.db import fetch_transactions
 
 
-def transactions_dataframe(db=None):
-    rows = fetch_transactions(db)
+def transactions_dataframe(user_id, db=None):
+    rows = fetch_transactions(user_id, db)
     df = pd.DataFrame(rows)
     if df.empty:
         return pd.DataFrame(
@@ -16,8 +16,8 @@ def transactions_dataframe(db=None):
     return df
 
 
-def generate_cashflow_report(db=None):
-    df = transactions_dataframe(db)
+def generate_cashflow_report(user_id, db=None):
+    df = transactions_dataframe(user_id, db)
     if df.empty:
         return {"income": 0.0, "expense": 0.0, "net": 0.0}
 
@@ -26,8 +26,8 @@ def generate_cashflow_report(db=None):
     return {"income": income, "expense": expense, "net": income - expense}
 
 
-def generate_category_report(db=None):
-    df = transactions_dataframe(db)
+def generate_category_report(user_id, db=None):
+    df = transactions_dataframe(user_id, db)
     if df.empty:
         return []
 
@@ -46,8 +46,8 @@ def generate_category_report(db=None):
     ]
 
 
-def build_ai_context(limit=200, db=None):
-    df = transactions_dataframe(db)
+def build_ai_context(user_id, limit=200, db=None):
+    df = transactions_dataframe(user_id, db)
     if df.empty:
         return "No transactions have been uploaded yet."
 
@@ -61,9 +61,9 @@ def build_ai_context(limit=200, db=None):
 
 
 # Wrappers to match imports in main.py
-def get_financial_summary(db=None):
-    return generate_cashflow_report(db)
+def get_financial_summary(user_id, db=None):
+    return generate_cashflow_report(user_id, db)
 
 
-def expenses_by_category(db=None):
-    return generate_category_report(db)
+def expenses_by_category(user_id, db=None):
+    return generate_category_report(user_id, db)

@@ -9,7 +9,6 @@ const state = {
 // DOM Elements
 const elements = {
     connectionStatus: document.getElementById('connectionStatus'),
-
     resetBtn: document.getElementById('resetBtn'),
     downloadBtn: document.getElementById('downloadBtn'),
     insightsBtn: document.getElementById('insightsBtn'),
@@ -35,7 +34,25 @@ const elements = {
     chatMessages: document.getElementById('chatMessages'),
     chatForm: document.getElementById('chatForm'),
     chatInput: document.getElementById('chatInput'),
-    chatSendBtn: document.getElementById('chatSendBtn')
+    chatSendBtn: document.getElementById('chatSendBtn'),
+
+    // Authentication Elements
+    authContainer: document.getElementById('authContainer'),
+    appContainer: document.getElementById('appContainer'),
+    authConnectionStatus: document.getElementById('authConnectionStatus'),
+    tabLoginBtn: document.getElementById('tabLoginBtn'),
+    tabSignupBtn: document.getElementById('tabSignupBtn'),
+    loginForm: document.getElementById('loginForm'),
+    signupForm: document.getElementById('signupForm'),
+    loginUsername: document.getElementById('loginUsername'),
+    loginPassword: document.getElementById('loginPassword'),
+    signupUsername: document.getElementById('signupUsername'),
+    signupEmail: document.getElementById('signupEmail'),
+    signupPassword: document.getElementById('signupPassword'),
+    loginError: document.getElementById('loginError'),
+    signupError: document.getElementById('signupError'),
+    signupSuccess: document.getElementById('signupSuccess'),
+    logoutBtn: document.getElementById('logoutBtn')
 };
 
 // Initialize App
@@ -43,8 +60,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Bind Event Listeners
     setupEventListeners();
     
-    // Check Connection & Load Dashboard
-    checkConnection();
+    // Check Auth Token
+    const token = localStorage.getItem('finsight_auth_token');
+    if (token) {
+        elements.authContainer.style.display = 'none';
+        elements.appContainer.style.display = 'flex';
+        checkConnection(true); // force load dashboard data
+    } else {
+        elements.authContainer.style.display = 'flex';
+        elements.appContainer.style.display = 'none';
+        checkConnection(); // check health status only
+    }
     
     // Start Connection Polling (every 8 seconds)
     setInterval(checkConnection, 8000);
@@ -105,6 +131,190 @@ function setupEventListeners() {
     elements.chatInput.addEventListener('input', () => {
         elements.chatSendBtn.disabled = !elements.chatInput.value.trim();
     });
+
+    // Authentication Listeners
+    elements.tabLoginBtn.addEventListener('click', () => {
+        elements.tabLoginBtn.classList.add('active');
+        elements.tabSignupBtn.classList.remove('active');
+        elements.loginForm.style.display = 'flex';
+        elements.signupForm.style.display = 'none';
+        elements.loginError.style.display = 'none';
+        elements.signupError.style.display = 'none';
+        elements.signupSuccess.style.display = 'none';
+    });
+
+    elements.tabSignupBtn.addEventListener('click', () => {
+        elements.tabSignupBtn.classList.add('active');
+        elements.tabLoginBtn.classList.remove('active');
+        elements.signupForm.style.display = 'flex';
+        elements.loginForm.style.display = 'none';
+        elements.loginError.style.display = 'none';
+        elements.signupError.style.display = 'none';
+        elements.signupSuccess.style.display = 'none';
+    });
+
+    elements.loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = elements.loginUsername.value.trim();
+        const password = elements.loginPassword.value;
+        elements.loginError.style.display = 'none';
+        
+        if (!state.isConnected) {
+            elements.loginError.textContent = "Cannot login: API is offline.";
+            elements.loginError.style.display = 'block';
+            return;
+        }
+        
+        try {
+            const res = await fetch(`${state.backendUrl}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            
+            const data = await res.json();
+            if (res.ok && data.access_token) {
+                localStorage.setItem('finsight_auth_token', data.access_token);
+                elements.authContainer.style.display = 'none';
+                elements.appContainer.style.display = 'flex';
+                elements.loginForm.reset();
+                loadDashboardData();
+            } else {
+                elements.loginError.textContent = data.detail || 'Login failed. Please check credentials.';
+                elements.loginError.style.display = 'block';
+            }
+        } catch (err) {
+            elements.loginError.textContent = 'Network connection error occurred.';
+            elements.loginError.style.display = 'block';
+        }
+    });
+
+    elements.signupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = elements.signupUsername.value.trim();
+        const email = elements.signupEmail.value.trim() || null;
+        const password = elements.signupPassword.value;
+        elements.signupError.style.display = 'none';
+        elements.signupSuccess.style.display = 'none';
+        
+        if (username.length < 3) {
+            elements.signupError.textContent = "Username must be at least 3 characters.";
+            elements.signupError.style.display = 'block';
+            return;
+        }
+        if (password.length < 6) {
+            elements.signupError.textContent = "Password must be at least 6 characters.";
+            elements.signupError.style.display = 'block';
+            return;
+        }
+        
+        if (!state.isConnected) {
+            elements.signupError.textContent = "Cannot sign up: API is offline.";
+            elements.signupError.style.display = 'block';
+            return;
+        }
+        
+        try {
+            const res = await fetch(`${state.backendUrl}/auth/signup`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password })
+            });
+            
+            const data = await res.json();
+            if (res.status === 201 || (res.ok && data.status === 'success')) {
+                elements.signupSuccess.textContent = "Account created successfully! Switch to Login tab.";
+                elements.signupSuccess.style.display = 'block';
+                elements.signupForm.reset();
+            } else {
+                elements.signupError.textContent = data.detail || 'Registration failed.';
+                elements.signupError.style.display = 'block';
+            }
+        } catch (err) {
+            elements.signupError.textContent = 'Network connection error occurred.';
+            elements.signupError.style.display = 'block';
+        }
+    });
+
+    elements.logoutBtn.addEventListener('click', () => {
+        logout();
+    });
+}
+
+// Auth fetch wrapper to automatically attach JWT header and handle 401
+async function authFetch(url, options = {}) {
+    const token = localStorage.getItem('finsight_auth_token');
+    if (!options.headers) {
+        options.headers = {};
+    }
+    if (token) {
+        options.headers['Authorization'] = `Bearer ${token}`;
+    }
+    options.mode = 'cors';
+    
+    try {
+        const response = await fetch(url, options);
+        if (response.status === 401) {
+            logout();
+            throw new Error('Unauthorized');
+        }
+        return response;
+    } catch (error) {
+        if (error.message === 'Unauthorized') {
+            throw error;
+        }
+        console.error(`Fetch error for ${url}:`, error);
+        throw error;
+    }
+}
+
+// Log out user and clear app state
+function logout() {
+    localStorage.removeItem('finsight_auth_token');
+    
+    // Show auth screen, hide app dashboard
+    elements.authContainer.style.display = 'flex';
+    elements.appContainer.style.display = 'none';
+    
+    // Clear forms & errors
+    elements.loginForm.reset();
+    elements.signupForm.reset();
+    elements.loginError.style.display = 'none';
+    elements.signupError.style.display = 'none';
+    elements.signupSuccess.style.display = 'none';
+    
+    // Reset tabs
+    elements.tabLoginBtn.classList.add('active');
+    elements.tabSignupBtn.classList.remove('active');
+    elements.loginForm.style.display = 'flex';
+    elements.signupForm.style.display = 'none';
+    
+    // Reset dashboard data
+    elements.incomeValue.textContent = '₹0.00';
+    elements.expenseValue.textContent = '₹0.00';
+    elements.netValue.textContent = '₹0.00';
+    elements.netValue.style.color = 'var(--text-primary)';
+    elements.fileList.innerHTML = '';
+    elements.insightsContent.innerHTML = '<p class="placeholder-text">Click "Generate Insights" to run AI diagnostics on your financial data.</p>';
+    elements.tableBody.innerHTML = '';
+    elements.tablePlaceholder.style.display = 'flex';
+    elements.transactionsTable.style.display = 'none';
+    elements.chartPlaceholder.style.display = 'flex';
+    elements.expenseChart.style.display = 'none';
+    
+    if (state.chart) {
+        state.chart.destroy();
+        state.chart = null;
+    }
+    
+    // Reset chatbot window
+    elements.chatMessages.innerHTML = `
+        <div class="message assistant">
+            <div class="message-bubble">
+                Hello! I am your AI financial assistant. Ask me questions about your transactions, spending patterns, or savings goals.
+            </div>
+        </div>
+    `;
 }
 
 // Check Connection to FastAPI
@@ -113,7 +323,8 @@ async function checkConnection(forceReload = false) {
         const res = await fetch(`${state.backendUrl}/health`, { method: 'GET', mode: 'cors' });
         if (res.ok) {
             updateConnectionStatus(true);
-            if (!state.isConnected || forceReload) {
+            const token = localStorage.getItem('finsight_auth_token');
+            if (token && (!state.isConnected || forceReload)) {
                 state.isConnected = true;
                 loadDashboardData();
             }
@@ -126,18 +337,33 @@ async function checkConnection(forceReload = false) {
 }
 
 function updateConnectionStatus(isOnline) {
+    const statuses = [
+        { el: elements.connectionStatus, btnSend: elements.chatSendBtn, btnInsights: elements.insightsBtn, btnReset: elements.resetBtn },
+        { el: elements.authConnectionStatus, btnSend: null, btnInsights: null, btnReset: null }
+    ];
+    
+    statuses.forEach(statusItem => {
+        const el = statusItem.el;
+        if (!el) return;
+        
+        if (isOnline) {
+            el.className = 'connection-status online';
+            el.querySelector('.status-text').textContent = 'API Connected';
+            if (statusItem.btnSend) statusItem.btnSend.disabled = !elements.chatInput.value.trim();
+            if (statusItem.btnInsights) statusItem.btnInsights.disabled = false;
+            if (statusItem.btnReset) statusItem.btnReset.disabled = false;
+        } else {
+            el.className = 'connection-status offline';
+            el.querySelector('.status-text').textContent = 'API Offline';
+            if (statusItem.btnSend) statusItem.btnSend.disabled = true;
+            if (statusItem.btnInsights) statusItem.btnInsights.disabled = true;
+            if (statusItem.btnReset) statusItem.btnReset.disabled = true;
+        }
+    });
+    
     if (isOnline) {
-        elements.connectionStatus.className = 'connection-status online';
-        elements.connectionStatus.querySelector('.status-text').textContent = 'API Connected';
-        elements.chatSendBtn.disabled = !elements.chatInput.value.trim();
-        elements.insightsBtn.disabled = false;
-        elements.resetBtn.disabled = false;
+        state.isConnected = true;
     } else {
-        elements.connectionStatus.className = 'connection-status offline';
-        elements.connectionStatus.querySelector('.status-text').textContent = 'API Offline';
-        elements.chatSendBtn.disabled = true;
-        elements.insightsBtn.disabled = true;
-        elements.resetBtn.disabled = true;
         state.isConnected = false;
     }
 }
@@ -145,10 +371,12 @@ function updateConnectionStatus(isOnline) {
 // Load Dashboard Metrics, Charts and Data
 async function loadDashboardData() {
     if (!state.isConnected) return;
+    const token = localStorage.getItem('finsight_auth_token');
+    if (!token) return;
     
     try {
         // 1. Fetch Metrics Summary
-        const summaryRes = await fetch(`${state.backendUrl}/summary`, { mode: 'cors' });
+        const summaryRes = await authFetch(`${state.backendUrl}/summary`);
         const summary = await summaryRes.json();
         
         elements.incomeValue.textContent = `₹${parseFloat(summary.income || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -163,7 +391,7 @@ async function loadDashboardData() {
         }
         
         // 2. Fetch Transactions List
-        const transactionsRes = await fetch(`${state.backendUrl}/transactions`, { mode: 'cors' });
+        const transactionsRes = await authFetch(`${state.backendUrl}/transactions`);
         const transactions = await transactionsRes.json();
         renderTransactionsTable(transactions);
         
@@ -171,7 +399,7 @@ async function loadDashboardData() {
         elements.downloadBtn.disabled = transactions.length === 0;
         
         // 3. Fetch Category Distribution
-        const categoriesRes = await fetch(`${state.backendUrl}/categories`, { mode: 'cors' });
+        const categoriesRes = await authFetch(`${state.backendUrl}/categories`);
         const categories = await categoriesRes.json();
         renderCategoryChart(categories);
         
@@ -319,9 +547,8 @@ async function handleFiles(files) {
         formData.append('file', file);
         
         try {
-            const res = await fetch(`${state.backendUrl}/upload/`, {
+            const res = await authFetch(`${state.backendUrl}/upload/`, {
                 method: 'POST',
-                mode: 'cors',
                 body: formData
             });
             const result = await res.json();
@@ -368,9 +595,8 @@ async function clearDatabase() {
     if (!state.isConnected) return;
     
     try {
-        const res = await fetch(`${state.backendUrl}/transactions`, {
-            method: 'DELETE',
-            mode: 'cors'
+        const res = await authFetch(`${state.backendUrl}/transactions`, {
+            method: 'DELETE'
         });
         const result = await res.json();
         
@@ -398,7 +624,7 @@ async function generateInsights() {
     elements.insightsBtn.disabled = true;
     
     try {
-        const res = await fetch(`${state.backendUrl}/insights`, { mode: 'cors' });
+        const res = await authFetch(`${state.backendUrl}/insights`);
         const result = await res.json();
         
         if (res.ok && result.status === 'success') {
@@ -495,9 +721,8 @@ async function handleChatSubmit() {
     scrollToBottom();
     
     try {
-        const res = await fetch(`${state.backendUrl}/agent/chat`, {
+        const res = await authFetch(`${state.backendUrl}/agent/chat`, {
             method: 'POST',
-            mode: 'cors',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ question: question })
         });

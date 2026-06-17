@@ -20,6 +20,8 @@ from backend.agents.transaction_extractor import (
 from backend.services.ingestion import (
     save_transactions
 )
+from backend.models.transaction import User
+from backend.api.auth import get_current_user
 
 router = APIRouter(
     prefix="/upload",
@@ -37,6 +39,7 @@ def get_db():
 @router.post("/")
 async def upload_file(
     file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
     db=Depends(get_db)
 ):
     extension = (
@@ -79,10 +82,7 @@ async def upload_file(
                 "error": "Unsupported file type"
             }
 
-        # Save and return count
-        # Note: If your save_transactions doesn't return count directly yet, 
-        # it will run successfully but saved_count will be None unless modified.
-        saved_count = save_transactions(db, transactions)
+        saved_count = save_transactions(db, transactions, source_file=file.filename, user_id=current_user.id)
 
         return {
             "status": "success",

@@ -8,12 +8,12 @@ from backend.models.transaction import Transaction
 
 load_dotenv()
 
-def ask_finance_agent(question):
+def ask_finance_agent(question, user_id):
     db = SessionLocal()
     context = ""  # Initialized empty context to prevent scoping reference errors if DB crashes
 
     try:
-        rows = db.query(Transaction).all()
+        rows = db.query(Transaction).filter(Transaction.user_id == user_id).all()
         financial_data = []
 
         for row in rows:

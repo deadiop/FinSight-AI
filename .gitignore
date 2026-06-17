@@ -31,3 +31,9 @@ check_data.py
 check_tables.py
 test_db.py
 update_categories.py
+
+# Test reports and deployment logs
+load_test_report.json
+netlify_deploy_output.txt
+netlify_status_output.txt
+
